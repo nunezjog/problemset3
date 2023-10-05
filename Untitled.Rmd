@@ -1,0 +1,77 @@
+---
+title: "Problem Set 3"
+author: "Johanna Nunez"
+date: "`r Sys.Date()`"
+output: word_document
+---
+# set working directory
+setwd("~/Users/jo/Desktop/Fall 2023/DemTechII/Problem Set 3")
+
+```{r load-packages, message=FALSE}
+library(HMDHFDplus)
+library(tidyverse)
+library(stringr)
+library(dplyr)
+```
+
+### Problem 1
+
+```{r code-chunk-label}
+HMD <- readHMDweb("USA", "bltper_1x1", username = "jgnunez@wisc.edu", password = "Password23!")
+
+# filter 2005 data
+HMD_05 <- filter (HMD , Year == 2005)
+# remove ex, Tx and OpenInterval columns
+HMD_dta <- subset(HMD_05, select = -c(ex, Tx, OpenInterval))
+# remove ages below 16, above 31
+data <- subset(HMD_dta, Age == 16:31)
+
+# include Wisconsin data
+#add nqx for death and cars
+data$nqx_i = 0.062-(0.000053*data$Age^2)
+data$nqx_d = data$qx
+
+# create nqx_total var
+data <- data %>%
+  mutate(nqx_total = data$nqx_d+data$nqx_i)
+
+# create npx column
+data <- data %>%
+  mutate(npx_total = 1-nqx_total)
+
+# add Wisconsinites of 85,000
+data$lx_total[1] = 85000
+for(i in 2:nrow(data)) {
+  data$lx_total[i] <- data$lx_total[i-1]*(1-data$nqx_total[i-1])
+}
+
+# calculate ndx_i
+data <- data %>%
+  mutate(ndx_i = nqx_i*lx_total)
+
+# calculate ndx_d
+data <- data %>%
+  mutate(ndx_d = nqx_d*lx_total)
+
+# clalculate ndx_total
+data$ndx_total <- data$lx_total[1] - data$lx_total[2]
+for(i in 1:nrow(data)) {
+  data$ndx_total[i] <- data$lx_total[i]-data$lx_total[i+1]
+}
+data$ndx_total[16] = data$lx_total[16]
+
+
+
+## question 1a
+data$lx_total[16]/data$lx_total[1]
+# outcome is 0.595662, or 59.57%
+
+## question 1b
+sum(data$ndx_i[10:15])/data$lx_total[10]
+# outcome is 0.1234919, or 12.35%
+
+## question 1c
+sum(data$ndx_d[1:15])/data$lx_total[1]
+# outcome is 0.01022, or 1.02%
+
+```
